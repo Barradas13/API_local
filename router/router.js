@@ -1,9 +1,9 @@
 import express from "express"
-import { data } from "../data/sample.data.js"
+import { getAllDados } from "../controllers/controller.js"
 
 const router = express.Router();
 
 
-router.get("/get", (req, res) => res.json(data))
+router.get("/get", getAllDados)
 
 export {router}
