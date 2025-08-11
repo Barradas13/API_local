@@ -89,3 +89,10 @@ app.listen(PORT, () => {
     console.log(`Servidor rodando em http://localhost:${PORT}`);
 });
 ```
+
+### 7. Usar o CORE
+
+O core serve para "permitir" que a api seja usada, você deve: npm i core
+import core from "core" e app.use(core()), tal como está no server.js
+
+### Na pasta public há um exemplo da utilização dessa API
