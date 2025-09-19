@@ -1,5 +1,5 @@
 import express from "express"
-import { router } from "./router/router.js";
+import { router } from "/home/aluno/Downloads/API_local/router/router.js";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -13,7 +13,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 
-app.use("/", router);
+app.use("/api/dados", router);
 
 
 app.get("/", (req, res) => {

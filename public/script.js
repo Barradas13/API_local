@@ -1,103 +1,228 @@
-const input_buscar = document.getElementById("buscar");
+const API_URL = 'http://localhost:3000/api/dados';
 
-var pessoas = []
+const form = document.getElementById('form');
+const nomeInput = document.getElementById('nome');
+const idadeInput = document.getElementById('idade');
+const idInput = document.getElementById('id');
+const dadosBody = document.getElementById('dados-body');
 
-async function getValoresAPI(cep) {
+const btnLogin = document.getElementById('btnLogin');
+const btnLogout = document.getElementById('btnLogout');
+const loginNome = document.getElementById('loginNome');
+const loginSenha = document.getElementById('loginSenha');
+const loginStatus = document.getElementById('loginStatus');
+
+let token = localStorage.getItem('token') || null;
+let userId = null;
+
+// Funções de login/logout
+const setLoggedIn = (id) => {
+  userId = id;
+  loginStatus.textContent = `Logado como usuário ID: ${id}`;
+  btnLogin.style.display = 'none';
+  btnLogout.style.display = 'inline';
+};
+
+const setLoggedOut = () => {
+  userId = null;
+  token = null;
+  localStorage.removeItem('token');
+  loginStatus.textContent = 'Desconectado';
+  btnLogin.style.display = 'inline';
+  btnLogout.style.display = 'none';
+};
+
+// Carregar e renderizar dados
+async function carregarDados() {
   try {
-    const response = await fetch("http://localhost:3000/get");
-
-    console.log("Oi");
-    if (!response.ok) {
-      alert("Erro ao pegar Dados");
-    }
-
-    const data = await response.json();
-    
-    console.log("aq", data[0]);
-
-    return data;
-  } catch {
-    return 0;
+    const res = await fetch(API_URL);
+    const dados = await res.json();
+    dadosBody.innerHTML = '';
+    dados.forEach(dado => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${dado.id}</td>
+        <td>${dado.nome}</td>
+        <td>${dado.idade}</td>
+        <td class="actions">
+          <button onclick="editarDado(${dado.id}, '${dado.nome}', ${dado.idade})">Editar</button>
+          <button onclick="excluirDado(${dado.id})">Excluir</button>
+        </td>
+      `;
+      dadosBody.appendChild(tr);
+    });
+  } catch (error) {
+    console.error('Erro ao carregar dados:', error);
   }
 }
 
+// Editar dado (apenas se for o próprio usuário)
+window.editarDado = (id, nome, idade) => {
+  if (userId !== id) {
+    alert('Você só pode editar seu próprio usuário!');
+    return;
+  }
+  idInput.value = id;
+  nomeInput.value = nome;
+  idadeInput.value = idade;
+};
 
-function addElemento(index, item){
-  const container = document.getElementById("cards-container");
-  
-  const card = document.createElement("div");
-  card.className = "card";
-  card.style = "width: 18rem; margin: 10px;";
-  card.id = `card-${item.id}`;
+// Excluir dado (apenas se for o próprio usuário)
+window.excluirDado = async (id) => {
+  if (userId !== id) {
+    alert('Você só pode excluir seu próprio usuário!');
+    return;
+  }
+  if (confirm('Tem certeza que deseja excluir?')) {
+    try {
+      const res = await fetch(`${API_URL}/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        alert(error.message);
+        return;
+      }
+      carregarDados();
+      setLoggedOut(); // desloga ao excluir conta
+    } catch (error) {
+      alert('Erro ao excluir usuário.');
+      console.error(error);
+    }
+  }
+};
 
-  const cardBody = document.createElement("div");
-  cardBody.className = "card-body";
+// Formulário (criar ou editar usuário)
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = idInput.value;
+  const nome = nomeInput.value.trim();
+  const idade = idadeInput.value;
+  const senha = document.getElementById('senha')?.value;
 
-  const title = document.createElement("h5");
-  title.className = "card-title";
-  title.textContent = item.nome || "Nome não disponível";  // Garantir que o nome seja mostrado
+  if (!nome || !idade) {
+    alert('Preencha nome e idade!');
+    return;
+  }
 
-  const subtitle = document.createElement("h6");
-  subtitle.className = "card-subtitle mb-2 text-body-secondary";
-  subtitle.textContent = item.email || "Email não disponível"; // Garantir que o email seja mostrado
+  const dado = { nome, idade: Number(idade) };
 
-  const idade = document.createElement("p");
-  idade.className = "card-text";
-  idade.textContent = "Idade: " + (item.idade || "não disponível");
+  try {
+    if (!id) {
+      if (!senha) {
+        alert('Para criar um usuário, a senha é obrigatória!');
+        return;
+      }
+      dado.senha = senha;
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dado)
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        alert(error.message || 'Erro ao criar usuário.');
+        return;
+      }
+    } else {
+      if (!token) {
+        alert('Você precisa estar logado para editar.');
+        return;
+      }
+      const res = await fetch(`${API_URL}/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify(dado)
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        alert(error.message || 'Erro ao editar usuário.');
+        return;
+      }
+    }
 
-  const prof = document.createElement("p");
-  prof.className = "card-text";
-  prof.textContent = "Profissão: " + (item.profissao || "não disponível");
+    form.reset();
+    idInput.value = '';
+    carregarDados();
 
-  cardBody.appendChild(title);
-  cardBody.appendChild(subtitle);
-  cardBody.appendChild(idade);
-  cardBody.appendChild(prof);
+  } catch (error) {
+    alert('Erro na operação.');
+    console.error(error);
+  }
+});
 
-  card.appendChild(cardBody);
-  container.appendChild(card);
+// Campo de senha (somente criação)
+const senhaInput = document.createElement('input');
+senhaInput.type = 'password';
+senhaInput.id = 'senha';
+senhaInput.placeholder = 'Senha (somente criação)';
+form.insertBefore(senhaInput, form.querySelector('button'));
+
+// Login
+btnLogin.addEventListener('click', async () => {
+  const nome = loginNome.value.trim();
+  const senha = loginSenha.value;
+  if (!nome || !senha) {
+    alert('Preencha nome e senha');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_URL}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nome, senha })
+    });
+
+    if (!res.ok) {
+      const error = await res.json();
+      alert(error.message);
+      return;
+    }
+
+    const data = await res.json();
+    token = data.token;
+    localStorage.setItem('token', token);
+
+    // Decodificar token para pegar id do usuário
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(c =>
+      '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+    ).join(''));
+    const payload = JSON.parse(jsonPayload);
+    setLoggedIn(payload.id);
+
+    carregarDados();
+  } catch (error) {
+    alert('Erro no login.');
+    console.error(error);
+  }
+});
+
+// Logout
+btnLogout.addEventListener('click', () => {
+  setLoggedOut();
+  carregarDados();
+});
+
+// Inicializar
+if (token) {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(c =>
+      '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+    ).join(''));
+    const payload = JSON.parse(jsonPayload);
+    setLoggedIn(payload.id);
+  } catch {
+    setLoggedOut();
+  }
 }
 
-async function carregaAntigos(){
-    const antigos = await getValoresAPI();
-
-    const arr = antigos || [];
-
-    for (let i = 0; i < arr.length; i++) {
-      addElemento(i, arr[i]);
-    }
-  
-}
-
-
-input_buscar.addEventListener('input', async () => {
-    const value = input_buscar.value.toLowerCase();
-    
-    let arr = [];
-
-    const container = document.getElementById("cards-container");
-    container.innerHTML = "";
-
-
-    dados = await getValoresAPI();
-
-    for(let i = 0; i < dados.length; i++){
-
-        if(dados[i].nome.toLowerCase().includes(value.toLowerCase())){
-            arr.push({valores: dados[i], index: i});
-        }
-    }
-    
-
-    for(let i = 0; i < arr.length; i++){
-
-        console.log(arr[i])
-
-        addElemento(arr[i].index, arr[i].valores);
-    }
-
-    
-  });
-
-
-window.onload = carregaAntigos;
+carregarDados();
