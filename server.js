@@ -1,5 +1,5 @@
 import express from "express"
-import { router } from "/home/aluno/Downloads/API_local/router/router.js";
+import { router } from "./router/router.js";
 import path from "path";
 import { fileURLToPath } from "url";
 

@@ -6,8 +6,8 @@ import {
   updateDado,
   deleteDado,
   login,
-  authenticateToken
 } from '../controllers/controller.js';
+import { authenticateToken } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
